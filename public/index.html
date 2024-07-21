@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improved WebSocket Chat</title>
+    <style>
+        #chat {
+            height: 300px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Improved WebSocket Chat</h1>
+    <div id="login">
+        <input type="text" id="username" placeholder="Enter your username">
+        <button onclick="joinChat()">Join Chat</button>
+    </div>
+    <div id="chatroom" style="display: none;">
+        <div id="chat"></div>
+        <input type="text" id="messageInput" placeholder="Type your message">
+        <button onclick="sendMessage()">Send</button>
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <script>
+        let socket;
+        let username;
+
+        function joinChat() {
+            username = document.getElementById('username').value.trim();
+            if (username) {
+                document.getElementById('login').style.display = 'none';
+                document.getElementById('chatroom').style.display = 'block';
+                connect();
+            } else {
+                alert('Please enter a username');
+            }
+        }
+
+        function connect() {
+            socket = new WebSocket("ws://" + window.location.host + "/ws");
+
+            socket.onopen = function(e) {
+                console.log("WebSocket connection established");
+                socket.send(JSON.stringify(username));
+            };
+
+            socket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                const chatDiv = document.getElementById('chat');
+                const messageElement = document.createElement('p');
+                messageElement.innerHTML = `<strong>${message.username}</strong> (${new Date(message.time).toLocaleTimeString()}): ${message.content}`;
+                chatDiv.appendChild(messageElement);
+                chatDiv.scrollTop = chatDiv.scrollHeight;
+            };
+
+            socket.onclose = function(event) {
+                console.log("WebSocket connection closed");
+                alert("Connection closed. Please refresh the page to reconnect.");
+            };
+
+            socket.onerror = function(error) {
+                console.error("WebSocket error:", error);
+            };
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            if (message && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ content: message }));
+                messageInput.value = '';
+            }
+        }
+
+        function logout() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            }
+            document.getElementById('login').style.display = 'block';
+            document.getElementById('chatroom').style.display = 'none';
+            document.getElementById('chat').innerHTML = '';
+            document.getElementById('username').value = '';
+            username = null;
+        }
+
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
